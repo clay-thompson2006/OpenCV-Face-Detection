@@ -1,31 +1,53 @@
-import cv2 # Import OpenCV Library
+import cv2
+import face_recognition
 
-face_classifier = cv2.CascadeClassifier(
-    cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-)
-# Initialize the video capture object to capture video from the default camera.
+# Load images and create face encodings
+hayden_image = face_recognition.load_image_file("Hayden.jpg")
+hayden_face_encoding = face_recognition.face_encodings(hayden_image)[0]
+
+sekol_image = face_recognition.load_image_file("Sekol.jpg")
+sekol_face_encoding = face_recognition.face_encodings(sekol_image)[0]
+
+known_face_encodings = [
+    hayden_face_encoding,
+    sekol_face_encoding
+]
+known_face_names = [
+    "Hayden Hetrick",
+    "Mr. Sekol"
+]
+
+# Initialize video capture from the default camera (change the argument to use a different camera)
 video_capture = cv2.VideoCapture(0)
-# Define a function to detect faces and draw bounding boxes around them in the input video frame.
-def detect_bounding_box(vid):
-    gray_image = cv2.cvtColor(vid, cv2.COLOR_BGR2GRAY)  # Use cv2.COLOR_BGR2GRAY for grayscale conversion
-    faces = face_classifier.detectMultiScale(gray_image, 1.1, 5, minSize=(40, 30))
-    for (x, y, w, h) in faces:
-        cv2.rectangle(vid, (x,y), (x + w, y + h), (0, 255, 0), 4)
-    return faces    
-# Start an infinite loop for video capture and processing.
+
 while True:
+    ret, frame = video_capture.read()
 
-    result, video_frame = video_capture.read()  # reads frames from the video
-    if result is False:
-        break  # terminates the loop if the frame is not read successfully
-    
-    faces = detect_bounding_box(video_frame)  # applies the function created to the video frame
+    # Find face locations in the current frame
+    face_locations = face_recognition.face_locations(frame)
+    face_encodings = face_recognition.face_encodings(frame, face_locations)
 
-    cv2.imshow("Haydens Face Detection Project", video_frame)  # displays the processed frame in a window named "Haydens Face Detection Project"
+    face_names = []
+    for face_encoding in face_encodings:
+        # Compare the current face with known faces
+        matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+        name = "Unknown"
 
-    # Check for the 'q' key press to exit the loop and terminate the program.
-    if cv2.waitKey(1) & 0xFF == ord("q"):
+        if True in matches:
+            first_match_index = matches.index(True)
+            name = known_face_names[first_match_index]
+
+        face_names.append(name)
+
+    for (top, right, bottom, left), name in zip(face_locations, face_names):
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+        font = cv2.FONT_HERSHEY_DUPLEX
+        cv2.putText(frame, name, (left + 6, bottom - 6), font, 0.5, (255, 255, 255), 1)
+
+    cv2.imshow('Video', frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         break
-# Release the video capture object and close all OpenCV windows.
+
 video_capture.release()
 cv2.destroyAllWindows()
