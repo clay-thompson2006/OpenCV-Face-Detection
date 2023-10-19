@@ -1,0 +1,86 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Emgu.CV;
+using Emgu.CV.Structure;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Face;
+
+namespace FaceRecognition
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // Load images and create face encodings
+            Image<Gray, byte> hayden_image = new Image<Gray, byte>("Hayden.jpg");
+            Image<Gray, byte> sekol_image = new Image<Gray, byte>("Sekol.jpg");
+
+            var hayden_face_encoding = GetFaceEncoding(hayden_image);
+            var sekol_face_encoding = GetFaceEncoding(sekol_image);
+
+            var known_face_encodings = new List<FaceEncoding>
+            {
+                hayden_face_encoding,
+                sekol_face_encoding
+            };
+
+            var known_face_names = new List<string>
+            {
+                "Hayden Hetrick",
+                "Mr. Sekol"
+            };
+
+            // Initialize video capture from the default camera (change the argument to use a different camera)
+            var video_capture = new VideoCapture(0);
+
+            while (true)
+            {
+                var frame = new Mat();
+                video_capture.Read(frame);
+
+                // Find face locations in the current frame
+                var face_locations = GetFaceLocations(frame);
+                var face_encodings = GetFaceEncodings(frame, face_locations);
+
+                var face_names = new List<string>();
+                foreach (var face_encoding in face_encodings)
+                {
+                    // Compare the current face with known faces
+                    var matches = CompareFaceEncodings(known_face_encodings, face_encoding);
+                    var name = "Unknown";
+
+                    if (matches.Contains(true))
+                    {
+                        var first_match_index = matches.IndexOf(true);
+                        name = known_face_names[first_match_index];
+                    }
+
+                    face_names.Add(name);
+                }
+
+                for (int i = 0; i < face_locations.Count; i++)
+                {
+                    var (top, right, bottom, left) = face_locations[i];
+                    var name = face_names[i];
+
+                    CvInvoke.Rectangle(frame, new Rectangle(left, top, right - left, bottom - top), new MCvScalar(0, 0, 255), 2);
+                    var font = new MCvFont(FONT.CV_FONT_HERSHEY_DUPLEX, 0.5, 0.5);
+                    CvInvoke.PutText(frame, name, new Point(left + 6, bottom - 6), FONT.CV_FONT_HERSHEY_DUPLEX, 0.5, new MCvScalar(255, 255, 255), 1);
+                }
+
+                CvInvoke.Imshow("Video", frame);
+
+                if (CvInvoke.WaitKey(1) == 'q')
+                    break;
+            }
+
+            video_capture.Dispose();
+            CvInvoke.DestroyAllWindows();
+        }
+
+        static FaceEncoding GetFaceEncoding(Image<Gray, byte> image)
+        {
+            var face```
